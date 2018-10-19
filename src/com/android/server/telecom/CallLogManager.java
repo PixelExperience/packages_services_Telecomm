@@ -40,7 +40,14 @@ import android.telephony.PhoneNumberUtils;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.CallerInfo;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Helper class that provides functionality to write information about calls and their associated
@@ -289,8 +296,8 @@ public final class CallLogManager extends CallsManagerListenerBase {
                     CarrierConfigManager.KEY_ALLOW_EMERGENCY_NUMBERS_IN_CALL_LOG_BOOL);
         }
 
-        // Don't log emergency numbers if the device doesn't allow it.
-        final boolean isOkToLogThisCall = !isEmergency || okToLogEmergencyNumber;
+        final boolean isOkToLogThisCall = (!isEmergency || okToLogEmergencyNumber)
+                && !isUnloggableNumber(number, configBundle) && !isSensitiveNumber;
 
         sendAddCallBroadcast(callType, duration);
 
@@ -311,6 +318,21 @@ public final class CallLogManager extends CallsManagerListenerBase {
         } else {
           Log.d(TAG, "Not adding emergency call to call log.");
         }
+    }
+
+    private boolean isUnloggableNumber(String callNumber, PersistableBundle carrierConfig) {
+        String normalizedNumber = PhoneNumberUtils.normalizeNumber(callNumber);
+        String[] unloggableNumbersFromCarrierConfig = carrierConfig == null ? null
+                : carrierConfig.getStringArray(
+                        CarrierConfigManager.KEY_UNLOGGABLE_NUMBERS_STRING_ARRAY);
+        String[] unloggableNumbersFromMccConfig = mContext.getResources()
+                .getStringArray(com.android.internal.R.array.unloggable_phone_numbers);
+        return Stream.concat(
+                unloggableNumbersFromCarrierConfig == null ?
+                        Stream.empty() : Arrays.stream(unloggableNumbersFromCarrierConfig),
+                unloggableNumbersFromMccConfig == null ?
+                        Stream.empty() : Arrays.stream(unloggableNumbersFromMccConfig)
+        ).anyMatch(unloggableNumber -> Objects.equals(unloggableNumber, normalizedNumber));
     }
 
     /**
