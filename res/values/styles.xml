@@ -15,7 +15,7 @@
 -->
 
 <resources>
-    <style name="Theme.Telecomm.Transparent" parent="@android:style/Theme.Material.Light">
+    <style name="Theme.Telecomm.Transparent" parent="@android:style/Theme.DeviceDefault.Settings">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowContentOverlay">@null</item>
@@ -25,20 +25,17 @@
         <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
     </style>
 
-    <style name="Theme.Telecom.DialerSettings" parent="@android:style/Theme.Material.Light">
+    <style name="Theme.Telecom.DialerSettings" parent="@android:style/Theme.DeviceDefault.Settings">
         <item name="android:actionBarStyle">@style/TelecomDialerSettingsActionBarStyle</item>
         <item name="android:actionOverflowButtonStyle">@style/TelecomDialerSettingsActionOverflowButtonStyle</item>
-        <item name="android:colorPrimaryDark">@color/dialer_settings_color_dark</item>
         <item name="android:homeAsUpIndicator">@drawable/ic_back_arrow</item>
         <item name="android:windowContentOverlay">@null</item>
     </style>
 
-    <style name="Theme.Telecom.BlockedNumbers" parent="@android:style/Theme.Material.Light">
+    <style name="Theme.Telecom.BlockedNumbers" parent="@android:style/Theme.DeviceDefault.Settings">
         <item name="android:actionBarStyle">@style/TelecomDialerSettingsActionBarStyle</item>
-        <item name="android:colorPrimaryDark">@color/dialer_settings_color_dark</item>
         <item name="android:homeAsUpIndicator">@drawable/ic_back_arrow</item>
         <item name="android:windowContentOverlay">@null</item>
-        <item name="android:colorAccent">@color/theme_color</item>
         <item name="android:listDivider">@null</item>
     </style>
 
