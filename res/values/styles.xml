@@ -51,7 +51,7 @@
     </style>
 
     <style name="TelecomDialerSettingsActionBarTitleText"
-            parent="@android:style/TextAppearance.Material.Widget.ActionBar.Title">
+            parent="@android:style/TextAppearance.DeviceDefault.Widget.ActionBar.Title">
         <item name="android:textColor">@color/dialer_settings_actionbar_text_color</item>
     </style>
 
