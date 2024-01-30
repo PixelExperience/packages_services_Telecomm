@@ -132,6 +132,7 @@ import com.android.server.telecom.callfiltering.IncomingCallFilterGraph;
 import com.android.server.telecom.callredirection.CallRedirectionProcessor;
 import com.android.server.telecom.components.ErrorDialogActivity;
 import com.android.server.telecom.components.TelecomBroadcastReceiver;
+import com.android.server.telecom.components.UserCallIntentProcessor;
 import com.android.server.telecom.stats.CallFailureCause;
 import com.android.server.telecom.ui.AudioProcessingNotification;
 import com.android.server.telecom.ui.CallRedirectionTimeoutDialogActivity;
@@ -655,7 +656,8 @@ public class CallsManager extends Call.ListenerBase
         mTtyManager = new TtyManager(context, mWiredHeadsetManager);
         mProximitySensorManager = proximitySensorManagerFactory.create(context, this);
         mPhoneStateBroadcaster = new PhoneStateBroadcaster(this);
-        mCallLogManager = new CallLogManager(context, phoneAccountRegistrar, mMissedCallNotifier);
+        mCallLogManager = new CallLogManager(context, phoneAccountRegistrar, mMissedCallNotifier,
+                mAnomalyReporter);
         mConnectionServiceRepository =
                 new ConnectionServiceRepository(mPhoneAccountRegistrar, mContext, mLock, this);
         mInCallWakeLockController = inCallWakeLockControllerFactory.create(context, this);
@@ -1381,8 +1383,11 @@ public class CallsManager extends Call.ListenerBase
     }
 
     @VisibleForTesting
-    public void setAnomalyReporterAdapter(AnomalyReporterAdapter mAnomalyReporterAdapter){
-        mAnomalyReporter = mAnomalyReporterAdapter;
+    public void setAnomalyReporterAdapter(AnomalyReporterAdapter anomalyReporterAdapter){
+        mAnomalyReporter = anomalyReporterAdapter;
+        if (mCallLogManager != null) {
+            mCallLogManager.setAnomalyReporterAdapter(anomalyReporterAdapter);
+        }
     }
 
     void processIncomingConference(PhoneAccountHandle phoneAccountHandle, Bundle extras) {
@@ -2305,6 +2310,15 @@ public class CallsManager extends Call.ListenerBase
 
          PhoneAccountHandle phoneAccountHandle = clientExtras.getParcelable(
                  TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE);
+         PhoneAccount account =
+                mPhoneAccountRegistrar.getPhoneAccount(phoneAccountHandle, initiatingUser);
+         boolean isSelfManaged = account != null && account.isSelfManaged();
+         // Enforce outgoing call restriction for conference calls. This is handled via
+         // UserCallIntentProcessor for normal MO calls.
+         if (UserUtil.hasOutgoingCallsUserRestriction(mContext, initiatingUser,
+                 null, isSelfManaged, CallsManager.class.getCanonicalName())) {
+             return;
+         }
          CompletableFuture<Call> callFuture = startOutgoingCall(participants, phoneAccountHandle,
                  clientExtras, initiatingUser, null/* originalIntent */, callingPackage,
                  true/* isconference*/);
@@ -4739,15 +4753,21 @@ public class CallsManager extends Call.ListenerBase
 
     /**
      * Determines the number of unholdable calls present in a connection service other than the one
-     * the passed phone account belonds to.
+     * the passed phone account belongs to. If a ConnectionService has not been associated with an
+     * outgoing call yet (for example, it is in the SELECT_PHONE_ACCOUNT state), then we do not
+     * count that call because it is not tracked as an active call yet.
      * @param phoneAccountHandle The handle of the PhoneAccount.
      * @return Number of unholdable calls owned by other connection service.
      */
     public int getNumUnholdableCallsForOtherConnectionService(
             PhoneAccountHandle phoneAccountHandle) {
         return (int) mCalls.stream().filter(call ->
-                !phoneAccountHandle.getComponentName().equals(
-                        call.getTargetPhoneAccount().getComponentName())
+                // If this convention needs to be changed, answerCall will need to be modified to
+                // change what an "active call" is so that the call in SELECT_PHONE_ACCOUNT state
+                // will be properly cancelled.
+                call.getTargetPhoneAccount() != null
+                        && !phoneAccountHandle.getComponentName().equals(
+                                call.getTargetPhoneAccount().getComponentName())
                         && call.getParentCall() == null
                         && !call.isExternalCall()
                         && !canHold(call)).count();
